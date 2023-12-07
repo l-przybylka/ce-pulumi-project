@@ -1,5 +1,9 @@
 config:
   aws:region: eu-west-2
+  pulumi-project:dynamo:
+    tables:
+      - lights
+      - heating
   pulumi-project:ec2:
     services:
       - lights

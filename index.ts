@@ -16,14 +16,19 @@ interface ec2 {
 }
 
 interface yourDetails {
-  yourIp: string;
+  yourIP: string;
   yourAccessKey: string;
+}
+
+interface dynamo {
+  tables: string[];
 }
 
 let config = new pulumi.Config();
 let vpc = config.requireObject<vpc>("vpc");
 let yourDetails = config.requireObject<yourDetails>("yourDetails");
 let ec2 = config.requireObject<ec2>("ec2");
+let dynamo = config.requireObject<dynamo>("dynamo");
 
 // NETWORKING
 const main = new aws.ec2.Vpc("main", {
@@ -104,7 +109,7 @@ const sg_ssh = new aws.ec2.SecurityGroup("allow-ssh", {
 
 const sg_ssh_ingress = new aws.vpc.SecurityGroupIngressRule("ssh-ingress", {
   securityGroupId: sg_ssh.id,
-  cidrIpv4: yourDetails.yourIp,
+  cidrIpv4: yourDetails.yourIP,
   fromPort: 22,
   ipProtocol: "tcp",
   toPort: 22,
@@ -210,5 +215,29 @@ const ec2_instances = pub_subs.map((subnet, index) => {
     instanceType: ec2.type,
     availabilityZone: vpc.azs[index],
     vpcSecurityGroupIds: [sg_ssh.id, sg_http.id, sg_https.id, sg_egress.id],
+    subnetId: subnet.id,
+    keyName: yourDetails.yourAccessKey,
+
+    tags: {
+      Name: `${ec2.services[index]}-app`,
+    },
+  });
+});
+
+// DATABASE
+
+const dynamo_tables = dynamo.tables.map((table, index) => {
+  return new aws.dynamodb.Table(`${table}-table`, {
+    name: `${table}`,
+    hashKey: "id",
+    readCapacity: 20,
+    writeCapacity: 20,
+
+    attributes: [
+      {
+        name: "id",
+        type: "N",
+      },
+    ],
   });
 });
