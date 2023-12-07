@@ -1,6 +1,11 @@
 config:
   aws:region: eu-west-2
-  pulumi-project:instance_type: t2.micro
+  pulumi-project:ec2:
+    services:
+      - lights
+      - heating
+      - status
+    type: t2.micro
   pulumi-project:vpc:
     azs:
       - eu-west-2a
@@ -16,4 +21,6 @@ config:
       - 10.0.0.0/24
       - 10.0.1.0/24
       - 10.0.2.0/24
-  pulumi-project:yourIP: 86.24.169.23/32
+  pulumi-project:yourDetails:
+    yourAccessKey: my-vm-key-pair
+    yourIP: 86.24.169.23/32

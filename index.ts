@@ -1,6 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 
+// INTERFACES FOR CONFIG OBJECTS
 interface vpc {
   name: string;
   cidr: string;
@@ -9,9 +10,20 @@ interface vpc {
   private_subnets: string[];
 }
 
+interface ec2 {
+  type: string;
+  services: string[];
+}
+
+interface yourDetails {
+  yourIp: string;
+  yourAccessKey: string;
+}
+
 let config = new pulumi.Config();
 let vpc = config.requireObject<vpc>("vpc");
-let yourIP = config.require("yourIP");
+let yourDetails = config.requireObject<yourDetails>("yourDetails");
+let ec2 = config.requireObject<ec2>("ec2");
 
 // NETWORKING
 const main = new aws.ec2.Vpc("main", {
@@ -24,33 +36,31 @@ const main = new aws.ec2.Vpc("main", {
   },
 });
 
-const pub_subs = vpc.public_subnets.map(
-  (cidr, index) =>
-    new aws.ec2.Subnet(`public-${index}`, {
-      vpcId: main.id,
-      cidrBlock: cidr,
-      availabilityZone: vpc.azs[index],
-      mapPublicIpOnLaunch: true,
+const pub_subs = vpc.public_subnets.map((cidr, index) => {
+  return new aws.ec2.Subnet(`public-${index}`, {
+    vpcId: main.id,
+    cidrBlock: cidr,
+    availabilityZone: vpc.azs[index],
+    mapPublicIpOnLaunch: true,
 
-      tags: {
-        Name: `public-sub-${index}`,
-      },
-    })
-);
+    tags: {
+      Name: `public-sub-${index}`,
+    },
+  });
+});
 
-const pri_subs = vpc.private_subnets.map(
-  (cidr, index) =>
-    new aws.ec2.Subnet(`private-${index}`, {
-      vpcId: main.id,
-      cidrBlock: cidr,
-      availabilityZone: vpc.azs[index],
-      mapPublicIpOnLaunch: false,
+const pri_subs = vpc.private_subnets.map((cidr, index) => {
+  return new aws.ec2.Subnet(`private-${index}`, {
+    vpcId: main.id,
+    cidrBlock: cidr,
+    availabilityZone: vpc.azs[index],
+    mapPublicIpOnLaunch: false,
 
-      tags: {
-        Name: `private-sub-${index}`,
-      },
-    })
-);
+    tags: {
+      Name: `private-sub-${index}`,
+    },
+  });
+});
 
 const igw = new aws.ec2.InternetGateway("gw", {
   vpcId: main.id,
@@ -75,13 +85,12 @@ const pub_rt = new aws.ec2.RouteTable("public", {
   },
 });
 
-const pub_rt_association = pub_subs.map(
-  (subnet, index) =>
-    new aws.ec2.RouteTableAssociation(`routeTableAssociation-${index}`, {
-      subnetId: subnet.id,
-      routeTableId: pub_rt.id,
-    })
-);
+const pub_rt_association = pub_subs.map((subnet, index) => {
+  return new aws.ec2.RouteTableAssociation(`routeTableAssociation-${index}`, {
+    subnetId: subnet.id,
+    routeTableId: pub_rt.id,
+  });
+});
 
 // SECURITY
 const sg_ssh = new aws.ec2.SecurityGroup("allow-ssh", {
@@ -95,7 +104,7 @@ const sg_ssh = new aws.ec2.SecurityGroup("allow-ssh", {
 
 const sg_ssh_ingress = new aws.vpc.SecurityGroupIngressRule("ssh-ingress", {
   securityGroupId: sg_ssh.id,
-  cidrIpv4: yourIP,
+  cidrIpv4: yourDetails.yourIp,
   fromPort: 22,
   ipProtocol: "tcp",
   toPort: 22,
@@ -178,4 +187,28 @@ const sg_egress_rule = new aws.vpc.SecurityGroupEgressRule("egress", {
   ipProtocol: "-1",
 });
 
-// export const public_subnets = pub_subs;
+// APP SERVERS
+
+const ubuntu = aws.ec2.getAmi({
+  mostRecent: true,
+  filters: [
+    {
+      name: "name",
+      values: ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"],
+    },
+    {
+      name: "virtualization-type",
+      values: ["hvm"],
+    },
+  ],
+  owners: ["099720109477"],
+});
+
+const ec2_instances = pub_subs.map((subnet, index) => {
+  return new aws.ec2.Instance(`${ec2.services[index]}-app`, {
+    ami: ubuntu.then((ubuntu) => ubuntu.id),
+    instanceType: ec2.type,
+    availabilityZone: vpc.azs[index],
+    vpcSecurityGroupIds: [sg_ssh.id, sg_http.id, sg_https.id, sg_egress.id],
+  });
+});
