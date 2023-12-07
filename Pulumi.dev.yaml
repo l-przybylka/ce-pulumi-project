@@ -1,0 +1,16 @@
+config:
+  aws:region: eu-west-2
+  pulumi-project:cidr: 10.0.0.0/20
+  pulumi-project:instance_type: t2.micro
+  pulumi-project:private_subnets:
+    - 10.0.0.8/24
+    - 10.0.0.9/24
+    - 10.0.0.10/24
+  pulumi-project:public_subnets:
+    - 10.0.0.0/24
+    - 10.0.0.1/24
+    - 10.0.0.2/24
+  pulumi-project:azs:
+    - eu-west-2a
+    - eu-west-2b
+    - eu-west-2c
