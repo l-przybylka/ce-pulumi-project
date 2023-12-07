@@ -11,7 +11,9 @@ interface vpc {
 
 let config = new pulumi.Config();
 let vpc = config.requireObject<vpc>("vpc");
+let yourIP = config.require("yourIP");
 
+// NETWORKING
 const main = new aws.ec2.Vpc("main", {
   cidrBlock: vpc.cidr,
   enableDnsHostnames: true,
@@ -80,5 +82,100 @@ const pub_rt_association = pub_subs.map(
       routeTableId: pub_rt.id,
     })
 );
+
+// SECURITY
+const sg_ssh = new aws.ec2.SecurityGroup("allow-ssh", {
+  description: "Allows SSH connections from the provided IP address",
+  vpcId: main.id,
+
+  tags: {
+    Name: "allow-ssh",
+  },
+});
+
+const sg_ssh_ingress = new aws.vpc.SecurityGroupIngressRule("ssh-ingress", {
+  securityGroupId: sg_ssh.id,
+  cidrIpv4: yourIP,
+  fromPort: 22,
+  ipProtocol: "tcp",
+  toPort: 22,
+});
+
+const sg_http = new aws.ec2.SecurityGroup("allow-http", {
+  description: "Allow HTTP connections",
+  vpcId: main.id,
+
+  tags: {
+    Name: "allow-http",
+  },
+});
+
+const sg_http_ingress80 = new aws.vpc.SecurityGroupIngressRule(
+  "http-80-ingress",
+  {
+    securityGroupId: sg_http.id,
+    cidrIpv4: "0.0.0.0/0",
+    fromPort: 80,
+    ipProtocol: "tcp",
+    toPort: 80,
+  }
+);
+
+const sg_http_ingress3000 = new aws.vpc.SecurityGroupIngressRule(
+  "http-3000-ingress",
+  {
+    securityGroupId: sg_http.id,
+    cidrIpv4: "0.0.0.0/0",
+    fromPort: 3000,
+    ipProtocol: "tcp",
+    toPort: 3000,
+  }
+);
+
+const sg_https = new aws.ec2.SecurityGroup("allow-https", {
+  description: "Allow HTTPS connections",
+  vpcId: main.id,
+
+  tags: {
+    Name: "allow-https",
+  },
+});
+
+const sg_https_ingress80 = new aws.vpc.SecurityGroupIngressRule(
+  "https-80-ingress",
+  {
+    securityGroupId: sg_https.id,
+    cidrIpv4: "0.0.0.0/0",
+    fromPort: 80,
+    ipProtocol: "tcp",
+    toPort: 80,
+  }
+);
+
+const sg_https_ingress3000 = new aws.vpc.SecurityGroupIngressRule(
+  "https-3000-ingress",
+  {
+    securityGroupId: sg_https.id,
+    cidrIpv4: "0.0.0.0/0",
+    fromPort: 3000,
+    ipProtocol: "tcp",
+    toPort: 3000,
+  }
+);
+
+const sg_egress = new aws.ec2.SecurityGroup("allow-egress", {
+  description: "Allow Egress connections",
+  vpcId: main.id,
+
+  tags: {
+    Name: "allow-egress",
+  },
+});
+
+const sg_egress_rule = new aws.vpc.SecurityGroupEgressRule("egress", {
+  securityGroupId: sg_egress.id,
+  cidrIpv4: "0.0.0.0/0",
+  ipProtocol: "-1",
+});
 
 // export const public_subnets = pub_subs;
