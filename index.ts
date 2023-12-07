@@ -241,3 +241,68 @@ const dynamo_tables = dynamo.tables.map((table, index) => {
     ],
   });
 });
+
+// LOAD BALACING
+
+const tg_apps = ec2.services.map((service) => {
+  return new aws.lb.TargetGroup(`${service}`, {
+    name: `${service}-tg`,
+    port: 3000,
+    protocol: "HTTP",
+    vpcId: main.id,
+
+    healthCheck: {
+      matcher: "200",
+      path: `/api/${service}/health`,
+    },
+  });
+});
+
+const tg_attachments = tg_apps.map((tg, index) => {
+  return new aws.lb.TargetGroupAttachment(`${ec2.services[index]}`, {
+    targetGroupArn: tg.arn,
+    targetId: ec2_instances[index].id,
+  });
+});
+
+const lb_apps = new aws.lb.LoadBalancer("lb-apps", {
+  name: "lb-apps",
+  internal: false,
+  loadBalancerType: "application",
+  securityGroups: [sg_ssh.id, sg_http.id, sg_https.id, sg_egress.id],
+  subnets: pub_subs.map((sub) => sub.id),
+});
+
+const lb_apps_listener = new aws.lb.Listener("lb-apps-listener", {
+  loadBalancerArn: lb_apps.arn,
+  port: 80,
+  protocol: "HTTP",
+
+  defaultActions: [
+    {
+      type: "forward",
+      targetGroupArn: tg_apps[2].arn,
+    },
+  ],
+});
+
+const lb_apps_listener_rules = tg_apps.map((tg, index) => {
+  return new aws.lb.ListenerRule(`${ec2.services[index]}-rule`, {
+    listenerArn: lb_apps_listener.arn,
+
+    actions: [
+      {
+        type: "forward",
+        targetGroupArn: tg.arn,
+      },
+    ],
+
+    conditions: [
+      {
+        pathPattern: { values: [`/api/${ec2.services[index]}*`] },
+      },
+    ],
+  });
+});
+
+export const l_balancer = lb_apps.dnsName;
