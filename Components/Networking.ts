@@ -19,6 +19,7 @@ export class Networking extends pulumi.ComponentResource {
 
   constructor(vpc: NetworkingArgs, opts?: pulumi.ComponentResourceOptions) {
     super("components:Networking", vpc.name, opts);
+
     this.vpc = new aws.ec2.Vpc("main", {
       cidrBlock: vpc.cidr,
       enableDnsHostnames: true,
