@@ -1,5 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
+import { Networking } from "./Components/Networking";
 
 // INTERFACES FOR CONFIG OBJECTS
 interface vpc {
@@ -31,278 +32,266 @@ let ec2 = config.requireObject<ec2>("ec2");
 let dynamo = config.requireObject<dynamo>("dynamo");
 
 // NETWORKING
-const main = new aws.ec2.Vpc("main", {
-  cidrBlock: vpc.cidr,
-  enableDnsHostnames: true,
-  enableDnsSupport: true,
 
-  tags: {
-    Name: vpc.name,
-  },
+const main = new Networking({
+  name: vpc.name,
+  cidr: vpc.cidr,
+  azs: vpc.azs,
+  private_subnets: vpc.private_subnets,
+  public_subnets: vpc.public_subnets,
 });
+// export const vpcId = main.vpc.id;
 
-const pub_subs = vpc.public_subnets.map((cidr, index) => {
-  return new aws.ec2.Subnet(`public-${index}`, {
-    vpcId: main.id,
-    cidrBlock: cidr,
-    availabilityZone: vpc.azs[index],
-    mapPublicIpOnLaunch: true,
+// // SECURITY
+// const sg_ssh = new aws.ec2.SecurityGroup("allow-ssh", {
+//   description: "Allows SSH connections from the provided IP address",
+//   vpcId: main.id,
 
-    tags: {
-      Name: `public-sub-${index}`,
-    },
-  });
-});
+//   tags: {
+//     Name: "allow-ssh",
+//   },
+// });
 
-const pri_subs = vpc.private_subnets.map((cidr, index) => {
-  return new aws.ec2.Subnet(`private-${index}`, {
-    vpcId: main.id,
-    cidrBlock: cidr,
-    availabilityZone: vpc.azs[index],
-    mapPublicIpOnLaunch: false,
+// const sg_ssh_ingress = new aws.vpc.SecurityGroupIngressRule("ssh-ingress", {
+//   securityGroupId: sg_ssh.id,
+//   cidrIpv4: yourDetails.yourIP,
+//   fromPort: 22,
+//   ipProtocol: "tcp",
+//   toPort: 22,
+// });
 
-    tags: {
-      Name: `private-sub-${index}`,
-    },
-  });
-});
+// const sg_http = new aws.ec2.SecurityGroup("allow-http", {
+//   description: "Allow HTTP connections",
+//   vpcId: main.id,
 
-const igw = new aws.ec2.InternetGateway("gw", {
-  vpcId: main.id,
+//   tags: {
+//     Name: "allow-http",
+//   },
+// });
 
-  tags: {
-    Name: `${vpc.name}-igw`,
-  },
-});
+// const sg_http_ingress80 = new aws.vpc.SecurityGroupIngressRule(
+//   "http-80-ingress",
+//   {
+//     securityGroupId: sg_http.id,
+//     cidrIpv4: "0.0.0.0/0",
+//     fromPort: 80,
+//     ipProtocol: "tcp",
+//     toPort: 80,
+//   }
+// );
 
-const pub_rt = new aws.ec2.RouteTable("public", {
-  vpcId: main.id,
+// const sg_http_ingress3000 = new aws.vpc.SecurityGroupIngressRule(
+//   "http-3000-ingress",
+//   {
+//     securityGroupId: sg_http.id,
+//     cidrIpv4: "0.0.0.0/0",
+//     fromPort: 3000,
+//     ipProtocol: "tcp",
+//     toPort: 3000,
+//   }
+// );
 
-  routes: [
-    {
-      cidrBlock: "0.0.0.0/0",
-      gatewayId: igw.id,
-    },
-  ],
+// const sg_https = new aws.ec2.SecurityGroup("allow-https", {
+//   description: "Allow HTTPS connections",
+//   vpcId: main.id,
 
-  tags: {
-    Name: "public-route-table",
-  },
-});
+//   tags: {
+//     Name: "allow-https",
+//   },
+// });
 
-const pub_rt_association = pub_subs.map((subnet, index) => {
-  return new aws.ec2.RouteTableAssociation(`routeTableAssociation-${index}`, {
-    subnetId: subnet.id,
-    routeTableId: pub_rt.id,
-  });
-});
+// const sg_https_ingress80 = new aws.vpc.SecurityGroupIngressRule(
+//   "https-80-ingress",
+//   {
+//     securityGroupId: sg_https.id,
+//     cidrIpv4: "0.0.0.0/0",
+//     fromPort: 80,
+//     ipProtocol: "tcp",
+//     toPort: 80,
+//   }
+// );
 
-// SECURITY
-const sg_ssh = new aws.ec2.SecurityGroup("allow-ssh", {
-  description: "Allows SSH connections from the provided IP address",
-  vpcId: main.id,
+// const sg_https_ingress3000 = new aws.vpc.SecurityGroupIngressRule(
+//   "https-3000-ingress",
+//   {
+//     securityGroupId: sg_https.id,
+//     cidrIpv4: "0.0.0.0/0",
+//     fromPort: 3000,
+//     ipProtocol: "tcp",
+//     toPort: 3000,
+//   }
+// );
 
-  tags: {
-    Name: "allow-ssh",
-  },
-});
+// const sg_egress = new aws.ec2.SecurityGroup("allow-egress", {
+//   description: "Allow Egress connections",
+//   vpcId: main.id,
 
-const sg_ssh_ingress = new aws.vpc.SecurityGroupIngressRule("ssh-ingress", {
-  securityGroupId: sg_ssh.id,
-  cidrIpv4: yourDetails.yourIP,
-  fromPort: 22,
-  ipProtocol: "tcp",
-  toPort: 22,
-});
+//   tags: {
+//     Name: "allow-egress",
+//   },
+// });
 
-const sg_http = new aws.ec2.SecurityGroup("allow-http", {
-  description: "Allow HTTP connections",
-  vpcId: main.id,
+// const sg_egress_rule = new aws.vpc.SecurityGroupEgressRule("egress", {
+//   securityGroupId: sg_egress.id,
+//   cidrIpv4: "0.0.0.0/0",
+//   ipProtocol: "-1",
+// });
 
-  tags: {
-    Name: "allow-http",
-  },
-});
+// // APP SERVERS
 
-const sg_http_ingress80 = new aws.vpc.SecurityGroupIngressRule(
-  "http-80-ingress",
-  {
-    securityGroupId: sg_http.id,
-    cidrIpv4: "0.0.0.0/0",
-    fromPort: 80,
-    ipProtocol: "tcp",
-    toPort: 80,
-  }
-);
+// const ubuntu = aws.ec2.getAmi({
+//   mostRecent: true,
+//   filters: [
+//     {
+//       name: "name",
+//       values: ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"],
+//     },
+//     {
+//       name: "virtualization-type",
+//       values: ["hvm"],
+//     },
+//   ],
+//   owners: ["099720109477"],
+// });
 
-const sg_http_ingress3000 = new aws.vpc.SecurityGroupIngressRule(
-  "http-3000-ingress",
-  {
-    securityGroupId: sg_http.id,
-    cidrIpv4: "0.0.0.0/0",
-    fromPort: 3000,
-    ipProtocol: "tcp",
-    toPort: 3000,
-  }
-);
+// const ec2_instances = pub_subs.map((subnet, index) => {
+//   return new aws.ec2.Instance(`${ec2.services[index]}-app`, {
+//     ami: ubuntu.then((ubuntu) => ubuntu.id),
+//     instanceType: ec2.type,
+//     availabilityZone: vpc.azs[index],
+//     vpcSecurityGroupIds: [sg_ssh.id, sg_http.id, sg_https.id, sg_egress.id],
+//     subnetId: subnet.id,
+//     keyName: yourDetails.yourAccessKey,
 
-const sg_https = new aws.ec2.SecurityGroup("allow-https", {
-  description: "Allow HTTPS connections",
-  vpcId: main.id,
+//     tags: {
+//       Name: `${ec2.services[index]}-app`,
+//     },
+//   });
+// });
 
-  tags: {
-    Name: "allow-https",
-  },
-});
+// // DATABASE
 
-const sg_https_ingress80 = new aws.vpc.SecurityGroupIngressRule(
-  "https-80-ingress",
-  {
-    securityGroupId: sg_https.id,
-    cidrIpv4: "0.0.0.0/0",
-    fromPort: 80,
-    ipProtocol: "tcp",
-    toPort: 80,
-  }
-);
+// const dynamo_tables = dynamo.tables.map((table, index) => {
+//   return new aws.dynamodb.Table(`${table}-table`, {
+//     name: `${table}`,
+//     hashKey: "id",
+//     readCapacity: 20,
+//     writeCapacity: 20,
 
-const sg_https_ingress3000 = new aws.vpc.SecurityGroupIngressRule(
-  "https-3000-ingress",
-  {
-    securityGroupId: sg_https.id,
-    cidrIpv4: "0.0.0.0/0",
-    fromPort: 3000,
-    ipProtocol: "tcp",
-    toPort: 3000,
-  }
-);
+//     attributes: [
+//       {
+//         name: "id",
+//         type: "N",
+//       },
+//     ],
+//   });
+// });
 
-const sg_egress = new aws.ec2.SecurityGroup("allow-egress", {
-  description: "Allow Egress connections",
-  vpcId: main.id,
+// // LOAD BALACING
 
-  tags: {
-    Name: "allow-egress",
-  },
-});
+// const tg_apps = ec2.services.map((service) => {
+//   return new aws.lb.TargetGroup(`${service}`, {
+//     name: `${service}-tg`,
+//     port: 3000,
+//     protocol: "HTTP",
+//     vpcId: main.id,
 
-const sg_egress_rule = new aws.vpc.SecurityGroupEgressRule("egress", {
-  securityGroupId: sg_egress.id,
-  cidrIpv4: "0.0.0.0/0",
-  ipProtocol: "-1",
-});
+//     healthCheck: {
+//       matcher: "200",
+//       path: `/api/${service}/health`,
+//     },
+//   });
+// });
 
-// APP SERVERS
+// const tg_attachments = tg_apps.map((tg, index) => {
+//   return new aws.lb.TargetGroupAttachment(`${ec2.services[index]}`, {
+//     targetGroupArn: tg.arn,
+//     targetId: ec2_instances[index].id,
+//   });
+// });
 
-const ubuntu = aws.ec2.getAmi({
-  mostRecent: true,
-  filters: [
-    {
-      name: "name",
-      values: ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"],
-    },
-    {
-      name: "virtualization-type",
-      values: ["hvm"],
-    },
-  ],
-  owners: ["099720109477"],
-});
+// const lb_apps = new aws.lb.LoadBalancer("lb-apps", {
+//   name: "lb-apps",
+//   internal: false,
+//   loadBalancerType: "application",
+//   securityGroups: [sg_ssh.id, sg_http.id, sg_https.id, sg_egress.id],
+//   subnets: pub_subs.map((sub) => sub.id),
+// });
 
-const ec2_instances = pub_subs.map((subnet, index) => {
-  return new aws.ec2.Instance(`${ec2.services[index]}-app`, {
-    ami: ubuntu.then((ubuntu) => ubuntu.id),
-    instanceType: ec2.type,
-    availabilityZone: vpc.azs[index],
-    vpcSecurityGroupIds: [sg_ssh.id, sg_http.id, sg_https.id, sg_egress.id],
-    subnetId: subnet.id,
-    keyName: yourDetails.yourAccessKey,
+// const lb_apps_listener = new aws.lb.Listener("lb-apps-listener", {
+//   loadBalancerArn: lb_apps.arn,
+//   port: 80,
+//   protocol: "HTTP",
 
-    tags: {
-      Name: `${ec2.services[index]}-app`,
-    },
-  });
-});
+//   defaultActions: [
+//     {
+//       type: "forward",
+//       targetGroupArn: tg_apps[2].arn,
+//     },
+//   ],
+// });
 
-// DATABASE
+// const lb_apps_listener_rules = tg_apps.map((tg, index) => {
+//   return new aws.lb.ListenerRule(`${ec2.services[index]}-rule`, {
+//     listenerArn: lb_apps_listener.arn,
 
-const dynamo_tables = dynamo.tables.map((table, index) => {
-  return new aws.dynamodb.Table(`${table}-table`, {
-    name: `${table}`,
-    hashKey: "id",
-    readCapacity: 20,
-    writeCapacity: 20,
+//     actions: [
+//       {
+//         type: "forward",
+//         targetGroupArn: tg.arn,
+//       },
+//     ],
 
-    attributes: [
-      {
-        name: "id",
-        type: "N",
-      },
-    ],
-  });
-});
+//     conditions: [
+//       {
+//         pathPattern: { values: [`/api/${ec2.services[index]}*`] },
+//       },
+//     ],
+//   });
+// });
 
-// LOAD BALACING
+// // AUTO SCALING
 
-const tg_apps = ec2.services.map((service) => {
-  return new aws.lb.TargetGroup(`${service}`, {
-    name: `${service}-tg`,
-    port: 3000,
-    protocol: "HTTP",
-    vpcId: main.id,
+// const ami_from_ec2_instances = ec2_instances.map((instance, index) => {
+//   return new aws.ec2.AmiFromInstance(`${ec2.services[index]}`, {
+//     sourceInstanceId: instance.id,
+//   });
+// });
 
-    healthCheck: {
-      matcher: "200",
-      path: `/api/${service}/health`,
-    },
-  });
-});
+// const launch_template_from_amis = ami_from_ec2_instances.map((ami, index) => {
+//   return new aws.ec2.LaunchTemplate(
+//     `${ami_from_ec2_instances[index].name}-launch-template`,
+//     {
+//       imageId: ami.id,
+//       instanceType: ec2.type,
+//       keyName: yourDetails.yourAccessKey,
 
-const tg_attachments = tg_apps.map((tg, index) => {
-  return new aws.lb.TargetGroupAttachment(`${ec2.services[index]}`, {
-    targetGroupArn: tg.arn,
-    targetId: ec2_instances[index].id,
-  });
-});
+//       networkInterfaces: [
+//         {
+//           subnetId: vpc.public_subnets[index],
+//           associatePublicIpAddress: "true",
+//           securityGroups: [sg_ssh.id, sg_http.id, sg_https.id, sg_egress.id],
+//         },
+//       ],
+//     }
+//   );
+// });
 
-const lb_apps = new aws.lb.LoadBalancer("lb-apps", {
-  name: "lb-apps",
-  internal: false,
-  loadBalancerType: "application",
-  securityGroups: [sg_ssh.id, sg_http.id, sg_https.id, sg_egress.id],
-  subnets: pub_subs.map((sub) => sub.id),
-});
-
-const lb_apps_listener = new aws.lb.Listener("lb-apps-listener", {
-  loadBalancerArn: lb_apps.arn,
-  port: 80,
-  protocol: "HTTP",
-
-  defaultActions: [
-    {
-      type: "forward",
-      targetGroupArn: tg_apps[2].arn,
-    },
-  ],
-});
-
-const lb_apps_listener_rules = tg_apps.map((tg, index) => {
-  return new aws.lb.ListenerRule(`${ec2.services[index]}-rule`, {
-    listenerArn: lb_apps_listener.arn,
-
-    actions: [
-      {
-        type: "forward",
-        targetGroupArn: tg.arn,
-      },
-    ],
-
-    conditions: [
-      {
-        pathPattern: { values: [`/api/${ec2.services[index]}*`] },
-      },
-    ],
-  });
-});
-
-export const l_balancer = lb_apps.dnsName;
+// const ec2CpuAlarm = new aws.cloudwatch.MetricAlarm("ec2CpuHighAlarm", {
+//   // Alarm when the average CPU utilization over the last minute is >= 70%
+//   comparisonOperator: "GreaterThanOrEqualToThreshold",
+//   evaluationPeriods: 1, // Evaluate the metric once
+//   metricName: "CPUUtilization",
+//   namespace: "AWS/EC2", // The namespace for EC2 instance metrics
+//   period: 60, // The period in seconds over which the metric is applied (1 minute)
+//   statistic: "Average",
+//   threshold: 70, // 70% CPU utilization
+//   alarmDescription: "Alarm when the CPU exceeds 70%",
+//   dimensions: {
+//     InstanceId: ec2_instances[0].id, // Replace with the actual EC2 instance ID
+//   },
+//   // Actions can be attached for alarm state changes such as SNS topics
+//   // alarmActions: [],
+//   // okActions: [],
+//   // insufficientDataActions: [],
+// });
