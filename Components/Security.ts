@@ -18,6 +18,7 @@ export class SecurityGroups extends pulumi.ComponentResource {
   public readonly sg_https_ingress3000: aws.vpc.SecurityGroupIngressRule;
   public readonly sg_egress: aws.ec2.SecurityGroup;
   public readonly sg_egress_rule: aws.vpc.SecurityGroupEgressRule;
+  public readonly sg_groups_ids: pulumi.Output<string>[];
 
   constructor(sg: SecurityArgs, opts?: pulumi.ComponentResourceOptions) {
     super("components:Security", sg.name, opts);
@@ -115,5 +116,12 @@ export class SecurityGroups extends pulumi.ComponentResource {
       cidrIpv4: "0.0.0.0/0",
       ipProtocol: "-1",
     });
+
+    this.sg_groups_ids = [
+      this.sg_ssh.id,
+      this.sg_http.id,
+      this.sg_https.id,
+      this.sg_egress.id,
+    ];
   }
 }
