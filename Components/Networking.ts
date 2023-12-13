@@ -91,8 +91,6 @@ export class Networking extends pulumi.ComponentResource {
       }
     );
 
-    this.registerOutputs({
-      vpcId: this.vpc.id,
-    });
+    this.registerOutputs({});
   }
 }
