@@ -2,7 +2,8 @@ import * as pulumi from "@pulumi/pulumi";
 import { Networking } from "./Components/Networking";
 import { SecurityGroups } from "./Components/Security";
 import { AppServers } from "./Components/AppServers";
-import { DynamoDB } from "./Components/Database";
+import { DynamoDB } from "./Components/DynamoDB";
+import { LoadBalancing } from "./Components/LoadBalancing";
 
 interface vpc {
   name: string;
@@ -40,87 +41,33 @@ const main = new Networking({
   public_subnets: vpc.public_subnets,
 });
 
-const security = new SecurityGroups({
-  name: `${vpc.name}-security-groups`,
-  vpcId: main.vpc.id,
-  yourIP: yourDetails.yourIP,
-});
-
-const app_servers = new AppServers("home-management", {
-  type: ec2.type,
-  services: ec2.services,
-  azs: vpc.azs,
-  yourAccessKey: yourDetails.yourAccessKey,
-  pub_subs: main.public_subnets,
-  security_groups_ids: security.sg_groups_ids,
-});
-
-const dynamo_tables = new DynamoDB({
-  name: "home-management",
-  tables: dynamo.tables,
-});
-
-// // LOAD BALACING
-
-// const tg_apps = ec2.services.map((service) => {
-//   return new aws.lb.TargetGroup(`${service}`, {
-//     name: `${service}-tg`,
-//     port: 3000,
-//     protocol: "HTTP",
-//     vpcId: main.id,
-
-//     healthCheck: {
-//       matcher: "200",
-//       path: `/api/${service}/health`,
-//     },
-//   });
+// const security = new SecurityGroups({
+//   name: `${vpc.name}-security-groups`,
+//   vpcId: main.vpc.id,
+//   yourIP: yourDetails.yourIP,
 // });
 
-// const tg_attachments = tg_apps.map((tg, index) => {
-//   return new aws.lb.TargetGroupAttachment(`${ec2.services[index]}`, {
-//     targetGroupArn: tg.arn,
-//     targetId: ec2_instances[index].id,
-//   });
+// const app_servers = new AppServers("home-management", {
+//   type: ec2.type,
+//   services: ec2.services,
+//   azs: vpc.azs,
+//   yourAccessKey: yourDetails.yourAccessKey,
+//   pub_subs: main.public_subnets,
+//   security_groups_ids: security.sg_groups_ids,
 // });
 
-// const lb_apps = new aws.lb.LoadBalancer("lb-apps", {
-//   name: "lb-apps",
-//   internal: false,
-//   loadBalancerType: "application",
-//   securityGroups: [sg_ssh.id, sg_http.id, sg_https.id, sg_egress.id],
-//   subnets: pub_subs.map((sub) => sub.id),
+// const dynamo_tables = new DynamoDB({
+//   name: "home-management",
+//   tables: dynamo.tables,
 // });
 
-// const lb_apps_listener = new aws.lb.Listener("lb-apps-listener", {
-//   loadBalancerArn: lb_apps.arn,
-//   port: 80,
-//   protocol: "HTTP",
-
-//   defaultActions: [
-//     {
-//       type: "forward",
-//       targetGroupArn: tg_apps[2].arn,
-//     },
-//   ],
-// });
-
-// const lb_apps_listener_rules = tg_apps.map((tg, index) => {
-//   return new aws.lb.ListenerRule(`${ec2.services[index]}-rule`, {
-//     listenerArn: lb_apps_listener.arn,
-
-//     actions: [
-//       {
-//         type: "forward",
-//         targetGroupArn: tg.arn,
-//       },
-//     ],
-
-//     conditions: [
-//       {
-//         pathPattern: { values: [`/api/${ec2.services[index]}*`] },
-//       },
-//     ],
-//   });
+// const load_balancing = new LoadBalancing({
+//   name: "home-management-load-balancer",
+//   services: ec2.services,
+//   vpcID: main.vpc.id,
+//   ec2_instances: app_servers.ec2_instances,
+//   security_groups_ids: security.sg_groups_ids,
+//   pub_subs: main.public_subnets,
 // });
 
 // // AUTO SCALING
@@ -148,23 +95,4 @@ const dynamo_tables = new DynamoDB({
 //       ],
 //     }
 //   );
-// });
-
-// const ec2CpuAlarm = new aws.cloudwatch.MetricAlarm("ec2CpuHighAlarm", {
-//   // Alarm when the average CPU utilization over the last minute is >= 70%
-//   comparisonOperator: "GreaterThanOrEqualToThreshold",
-//   evaluationPeriods: 1, // Evaluate the metric once
-//   metricName: "CPUUtilization",
-//   namespace: "AWS/EC2", // The namespace for EC2 instance metrics
-//   period: 60, // The period in seconds over which the metric is applied (1 minute)
-//   statistic: "Average",
-//   threshold: 70, // 70% CPU utilization
-//   alarmDescription: "Alarm when the CPU exceeds 70%",
-//   dimensions: {
-//     InstanceId: ec2_instances[0].id, // Replace with the actual EC2 instance ID
-//   },
-//   // Actions can be attached for alarm state changes such as SNS topics
-//   // alarmActions: [],
-//   // okActions: [],
-//   // insufficientDataActions: [],
 // });

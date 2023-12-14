@@ -123,5 +123,7 @@ export class SecurityGroups extends pulumi.ComponentResource {
       this.sg_https.id,
       this.sg_egress.id,
     ];
+
+    this.registerOutputs({});
   }
 }

@@ -27,5 +27,7 @@ export class DynamoDB extends pulumi.ComponentResource {
         ],
       });
     });
+
+    this.registerOutputs({});
   }
 }

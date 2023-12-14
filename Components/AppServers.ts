@@ -49,5 +49,7 @@ export class AppServers extends pulumi.ComponentResource {
         },
       });
     });
+
+    this.registerOutputs({});
   }
 }
