@@ -2,8 +2,8 @@ import * as pulumi from "@pulumi/pulumi";
 import { Networking } from "./Components/Networking";
 import { SecurityGroups } from "./Components/Security";
 import { AppServers } from "./Components/AppServers";
+import { DynamoDB } from "./Components/Database";
 
-// INTERFACES FOR CONFIG OBJECTS
 interface vpc {
   name: string;
   cidr: string;
@@ -55,23 +55,10 @@ const app_servers = new AppServers("home-management", {
   security_groups_ids: security.sg_groups_ids,
 });
 
-// // DATABASE
-
-// const dynamo_tables = dynamo.tables.map((table, index) => {
-//   return new aws.dynamodb.Table(`${table}-table`, {
-//     name: `${table}`,
-//     hashKey: "id",
-//     readCapacity: 20,
-//     writeCapacity: 20,
-
-//     attributes: [
-//       {
-//         name: "id",
-//         type: "N",
-//       },
-//     ],
-//   });
-// });
+const dynamo_tables = new DynamoDB({
+  name: "home-management",
+  tables: dynamo.tables,
+});
 
 // // LOAD BALACING
 
