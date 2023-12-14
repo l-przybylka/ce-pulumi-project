@@ -1,6 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import { Networking } from "./Components/Networking";
 import { SecurityGroups } from "./Components/Security";
+import { AppServers } from "./Components/AppServers";
 
 // INTERFACES FOR CONFIG OBJECTS
 interface vpc {
@@ -31,8 +32,6 @@ let yourDetails = config.requireObject<yourDetails>("yourDetails");
 let ec2 = config.requireObject<ec2>("ec2");
 let dynamo = config.requireObject<dynamo>("dynamo");
 
-// NETWORKING
-
 const main = new Networking({
   name: vpc.name,
   cidr: vpc.cidr,
@@ -41,45 +40,20 @@ const main = new Networking({
   public_subnets: vpc.public_subnets,
 });
 
-// // SECURITY
-
 const security = new SecurityGroups({
   name: `${vpc.name}-security-groups`,
   vpcId: main.vpc.id,
   yourIP: yourDetails.yourIP,
 });
 
-// // APP SERVERS
-
-// const ubuntu = aws.ec2.getAmi({
-//   mostRecent: true,
-//   filters: [
-//     {
-//       name: "name",
-//       values: ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"],
-//     },
-//     {
-//       name: "virtualization-type",
-//       values: ["hvm"],
-//     },
-//   ],
-//   owners: ["099720109477"],
-// });
-
-// const ec2_instances = pub_subs.map((subnet, index) => {
-//   return new aws.ec2.Instance(`${ec2.services[index]}-app`, {
-//     ami: ubuntu.then((ubuntu) => ubuntu.id),
-//     instanceType: ec2.type,
-//     availabilityZone: vpc.azs[index],
-//     vpcSecurityGroupIds: [sg_ssh.id, sg_http.id, sg_https.id, sg_egress.id],
-//     subnetId: subnet.id,
-//     keyName: yourDetails.yourAccessKey,
-
-//     tags: {
-//       Name: `${ec2.services[index]}-app`,
-//     },
-//   });
-// });
+const app_servers = new AppServers("home-management", {
+  type: ec2.type,
+  services: ec2.services,
+  azs: vpc.azs,
+  yourAccessKey: yourDetails.yourAccessKey,
+  pub_subs: main.public_subnets,
+  security_groups_ids: security.sg_groups_ids,
+});
 
 // // DATABASE
 
