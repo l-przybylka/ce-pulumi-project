@@ -10,13 +10,14 @@ interface asArgs {
   pub_subs: aws.ec2.Subnet[];
   security_groups_ids: pulumi.Output<string>[];
   azs: string[];
+  target_groups: aws.lb.TargetGroup[];
 }
 
 export class AutoScaling extends pulumi.ComponentResource {
   public readonly ami_from_ec2_instances: aws.ec2.AmiFromInstance[];
   public readonly launch_template_from_amis: aws.ec2.LaunchTemplate[];
   public readonly autoscaling_groups: aws.autoscaling.Group[];
-  public readonly autoscaling_attachment: aws.autoscaling.Attachment;
+  public readonly autoscaling_attachment: aws.autoscaling.Attachment[];
 
   constructor(args: asArgs, opts?: pulumi.ComponentResourceOptions) {
     super("components:AutoScaling", args.name, opts);
@@ -48,28 +49,26 @@ export class AutoScaling extends pulumi.ComponentResource {
       }
     );
 
-    // https://www.pulumi.com/registry/packages/aws/api-docs/autoscaling/
-
     this.autoscaling_groups = args.ec2_instances.map((instance, index) => {
-     return new aws.autoscaling.Group(`${args.services[index]}-ag`, {
-        availabilityZones: args.azs,
+      return new aws.autoscaling.Group(`${args.services[index]}-ag`, {
         desiredCapacity: 2,
         maxSize: 1,
         minSize: 1,
-        vpcZoneIdentifiers: args.pub_subs.map(subnet => subnet.id)
+        vpcZoneIdentifiers: args.pub_subs.map((subnet) => subnet.id),
 
-        
         launchTemplate: {
-            id: foobar.id,
-            version: "$Latest",
+          id: this.launch_template_from_amis[index].id,
+          version: "$Latest",
         },
+      });
     });
-    })
 
-    // const example = new aws.autoscaling.Attachment("example", {
-    //     autoscalingGroupName: aws_autoscaling_group.example.id,
-    //     elb: aws_elb.example.id,
-    // });
+    this.autoscaling_attachment = this.autoscaling_groups.map((gp, index) => {
+      return new aws.autoscaling.Attachment("example", {
+        autoscalingGroupName: gp.id,
+        lbTargetGroupArn: args.target_groups[index].arn,
+      });
+    });
 
     this.registerOutputs({});
   }
