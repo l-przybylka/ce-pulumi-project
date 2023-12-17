@@ -31,17 +31,21 @@
 ```diff
 
 config:
+# sets region where the IaC will be provisioned
   aws:region: eu-west-2
+# sets object with DynamoDB table names
   pulumi-project:dynamo:
     tables:
       - lights
       - heating
+# sets object with services to be deployed on EC2 instances as well as the type of the instances
   pulumi-project:ec2:
     services:
       - lights
       - heating
       - status
     type: t2.micro
+# sets the object with the VPC specifications: availability zones, cidr block, cidr blocks for public and private subnets 
   pulumi-project:vpc:
     azs:
       - eu-west-2a
@@ -57,6 +61,7 @@ config:
       - 10.0.0.0/24
       - 10.0.1.0/24
       - 10.0.2.0/24
+# sets the object with your IP and the access key
   pulumi-project:yourDetails:
     yourAccessKey: YOUR_ACCESS_KEY
     yourIP: YOUR_IP
@@ -64,7 +69,7 @@ config:
 
 ```
 
-### Step 3: Run terraform apply to create the infrastructure on AWS
+### Step 3: Run pulumi up to create the infrastructure on AWS
 <br>
 
 ```
@@ -99,7 +104,6 @@ ec2-server-ssh$ pm2 save
 > The project is divided into the following modules:
 ### Networking
 > The Networking module provisions VPC and creates public and private subnets. As well as set up a route table and internet gateway for the public subnets.
-
 ### Security
 > The security module creates security groups to be used throughout the infrastructure, it controls the incoming and outgoing traffic. By default, the security groups will allow SSH connections from the provided IP, HTTP and HTTPS traffic on ports 80 and 3000 as well as allow all outgoing traffic.
 ### App servers
