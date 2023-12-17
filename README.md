@@ -16,6 +16,7 @@
 
 ## Usage
 <br>
+
 ### Step 1: After logging in to AWS in the CLI, initialise Pulumi in its directory
 <br>
 
@@ -25,11 +26,15 @@
 ```
 
 ### Step 2: Update the Pulumi.dev.yaml file
-<br>
 
 > You must add your IP address and Access Key generated in AWS to be able to use the project. Here you can also customise the project specifications
+> 
 ```diff
+# Run this command in your terminal to get your IP
+curl icanhazip.com
+```
 
+```diff
 config:
 # sets region where the IaC will be provisioned
   aws:region: eu-west-2
@@ -98,10 +103,10 @@ ec2-server-ssh$ pm2 startup
 ec2-server-ssh$ pm2 save
 ```
 
-## Modules
+## Components
+> Initially, the project was built using the monolithic approach where all of the resources sat in the main.ts file, after finishing it, I decided to go the route of abstracting the resources into classes to create the following components:
 <br>
 
-> The project is divided into the following modules:
 ### Networking
 > The Networking module provisions VPC and creates public and private subnets. As well as set up a route table and internet gateway for the public subnets.
 ### Security
