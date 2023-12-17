@@ -11,7 +11,8 @@
 
 ## Install
 <br>
-[Follow the Pulumi installation steps for your system](https://www.pulumi.com/docs/install/)
+
+[Follow the Pulumi installation steps for your system](https://www.pulumi.com/docs/install)
 
 ## Usage
 <br>
