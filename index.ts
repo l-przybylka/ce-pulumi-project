@@ -81,4 +81,5 @@ const autoscaling = new AutoScaling({
   instance_type: ec2.type,
   yourAccessKey: yourDetails.yourAccessKey,
   azs: vpc.azs,
+  target_groups: load_balancing.tg_for_apps,
 });
